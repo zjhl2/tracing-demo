@@ -19,5 +19,14 @@ docker run -d --name jaeger \
 ```
 
 ## 2. run formatter and publisher, then hello
-
+```shell script
+go run cmd/formatter/formatter.go
+go run cmd/publisher/publisher.go
+go run cmd/client/client.go
+```
 ## 3. open https://localhost:16686
+
+## 4. jaeger-client-go is being deprecated, urge all users to migrate to OpenTelemetry.
+```shell script
+go run cmd/otel/otel.go
+```
