@@ -22,12 +22,13 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -94,9 +95,38 @@ func main() {
 func bar(ctx context.Context) {
 	// Use the global TracerProvider.
 	tr := otel.Tracer("component-bar")
-	_, span := tr.Start(ctx, "bar")
+	ctx, span := tr.Start(ctx, "bar")
 	span.SetAttributes(attribute.Key("testset").String("value"))
+
+	prop := propagation.TraceContext{}
+	h := propagation.HeaderCarrier{}
+	prop.Inject(ctx, h)
+
+	cur(ctx, h)
+
 	defer span.End()
 
 	// Do bar...
+}
+
+func cur(ctx context.Context, h propagation.HeaderCarrier) {
+	// Use the global TracerProvider.
+	prop := propagation.TraceContext{}
+	ctx = prop.Extract(ctx, h)
+
+	tr := otel.Tracer("component-cur")
+	ctx1, span := tr.Start(ctx, "cur1")
+	_, span2 := tr.Start(ctx1, "cur2")
+
+	span.SetAttributes(attribute.Key("cur1").String("value1"))
+	span2.SetAttributes(attribute.Key("cur2").String("value2"))
+
+	span.AddEvent("event1", trace.WithAttributes(attribute.String("a", "b"), attribute.Key("key1").String("v1")))
+	time.Sleep(time.Second * 1)
+	span.AddEvent("event2", trace.WithAttributes(attribute.String("a", "b"), attribute.Key("key1").String("v1")))
+
+	defer span.End()
+	defer span2.End()
+
+	// Do cur...
 }
